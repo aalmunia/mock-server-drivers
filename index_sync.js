@@ -10,6 +10,16 @@ const bodyParser = require("body-parser");
 // Conectamos a la base de datos sqlite
 sqlite.connect("./database_mock.db");
 
+
+function objectIsEmpty(obj) {
+  for(var key in obj) {
+      if(obj.hasOwnProperty(key))
+          return false;
+  }
+  return true;
+}
+
+
 /**
  * @returns Array El array de proyectos, desde la bbdd
  */
@@ -121,23 +131,57 @@ function getDriverProject(idProject, idDriver) {
   }
 }
 
-function createProjectInDB(name) {
-  let sqlGetMaxID = `SELECT (MAX(id) + 1) AS newid FROM project`;
-  let resultMaxID = sqlite.run(sqlGetMaxID);
-
-  // if(resultMaxID)
-
-
-  let sql = `INSERT INTO project (id, bbva_uuid, name, completed) VALUES (15, 'loquesea', '` + name + `', 0)`;
-  try {
-    let result = sqlite.run(sql);
-  } catch (exc) {
-    throw exc;
-  } finally {
-    console.log('Ejecutada la inserción');
+function getNextProjectID() {
+  let sql = `SELECT (MAX(id) + 1) AS newid FROM project`;
+  let result = sqlite.run(sql);
+  if(result.length > 0) {
+    return result[0].newid;
+  } else {
+    return null;
   }
-  // console.log(result);
 }
+
+function createProjectInDB(name) {
+  let newID = getNextProjectID();
+  if(newID === null) {
+    console.log('ERROR, NO HE PODIDO OBTENER EL NUEVO ID. ¿ESTÁ BIEN CONECTADA LA BASE DE DATOS?');
+  } else {
+    let sql = `INSERT INTO project (id, bbva_uuid, name, completed) VALUES (`+ newID +`, 'loquesea', '` + name + `', 0)`;
+    try {
+      let result = sqlite.run(sql);
+      console.log(result);
+    } catch (exc) {
+      throw exc;
+    }
+  }
+}
+
+
+function modifyProject(dataModify) {
+  let sqlUpdate = '';
+  if(objectIsEmpty(dataModify)) {
+    return null;
+  } else {    
+    sqlUpdate = `UPDATE project SET `;
+    for(var prop in dataModify) {
+      if(prop === 'id') {
+        continue;   // EL ID NO LO QUEREMOS MODIFICAR, ¿VERDAD?
+      }
+      sqlUpdate += prop + ` = '` + dataModify[prop] + `', `;
+    }
+    // Hay que quitar la última coma, o dará un error, la SQL no será correcta, por tanto:
+    let positionLastComma = sqlUpdate.lastIndexOf(',');
+    sqlUpdate = sqlUpdate.substr(0, positionLastComma);
+    sqlUpdate += ` WHERE id = ` + dataModify.id; 
+    let resultExec = sqlite.run(sqlUpdate);
+    if(resultExec === 0) {
+      return true;
+    } else {
+      return false;
+    }
+ } 
+}
+
 
 /**
  * Lo preparamos para accesos CORS sin que de problemas de SameHost e historias...
@@ -215,35 +259,34 @@ app.get("/projects_driver/:idProject/:idDriver", function (request, response) {
   response.json(aReturn);
 });
 
-app.get("/omfg", function (req, res) {
-  console.log('In here');
-  // res.send("Here OMFG");
-});
-
-app.post('/testpost', function (request, response) {
-  /* console.log(request.body.param1);
-  console.log(request.body.param2);
-  console.log(request.body.param3); */
-  console.log(request.body);
-  response.send('OK');
-});
-
-
 app.post('/newproject', function (request, response) {
-  console.log(request.body);
-
   if (request.body.hasOwnProperty('name_project')) {
     try {
       createProjectInDB(request.body.name_project);
-    } catch (exc) {
-      console.log(exc);
-      console.log('ERROR DE BASE DE DATOS');
-      // return false;   // SAlir de método
-      response.send(exc);
+    } catch (exc) {      
+      response.send('ERROR EN BASE DE DATOS, REVISA LOG DEL SERVIDOR');
     }
     response.send('OK');
   } else {
     response.send('atpc de aqui');
+  }
+});
+
+
+app.put('/project', function(request, response) {
+  if(request.body.hasOwnProperty('project_data')) {
+    if(request.body.project_data.hasOwnProperty('id')) {
+      let result = modifyProject(request.body.project_data);
+      if(result === true) {
+        response.send("MODIFICACIÓN OK");
+      } else {
+        reponse.send("HUBO UN ERROR, REVISA LOG DE SERVIDOR");
+      }
+    } else {
+      response.send("DEBES SUMINISTRAR UN CAMPO id EN LA ESTRUCTURA DE DATOS PARA SABER QUE PROYECTO EDITAR");      
+    }
+  } else {
+    response.send("DEBES SUMINISTRAR UNA ESTRUCTURA JSON project_data EN EL CUERPO DE LA PETICIÓN");
   }
 });
 
