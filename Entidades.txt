@@ -1,0 +1,37 @@
+ENTIDADES Y RELACIONES:
+
+CASO 1: Solo existen drivers rankeados de tipo YES/NO, HIGHE/MED/LOW y de 1 a 5
+
+ENTIDAD PROYECTO
+
+id: String | Number (no es del todo seguro)
+name: String
+completed: boolean
+ranked_drivers: Array (RANKED_DRIVERS)
+non_ranked_drivers: Array (NON_RANKED_DRIVERS)
+
+
+ENTIDAD RANKED_DRIVERS
+
+id: Number
+name: String
+type: Enum (0,1,2) - 0 YES/NO, 1 LOW/MED/HIGH, 2 1 a 5
+
+
+ENTIDAD NON_RANKED_DRIVERS
+
+id: Number
+name: String
+
+ENTIDAD-RELACION PROYECTO::RANKED_DRIVERS
+
+id_project: Number | String
+id_ranked_driver: Number
+value: Enum valid type
+
+
+ENTIDAD-RELACION PROYECTO::NON_RANKED_DRIVERS
+
+id_project: Number | String
+id_non_ranked_driver: Number
+value: String | Number
